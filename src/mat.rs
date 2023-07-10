@@ -201,15 +201,16 @@ impl ops::IndexMut<(usize, usize)> for MatF64 {
 
 impl std::fmt::Display for MatF64 {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        // let mut out = String::new();
-        // write!(f, "MatF64 rows: {} cols: {}\n}}", self.rows, self.cols)
-        //
-        // for r in 0..self.rows {
-        //     for c in 0..self.cols {
-        //         out += format!(f, "{} ", self.data[r * self.cols + c]);
-        //     }
-        // }
-        write!(f, "{:?}", self)
+        let mut out = String::new();
+        out += "\n";
+        for r in 0..self.rows {
+            out += "(";
+            for c in 0..self.cols {
+               out += &format!("{:.5} ", self[(r, c)]);
+            }
+            out += ")\n";
+        }
+        write!(f, "{}", out)
     }
 }
 
