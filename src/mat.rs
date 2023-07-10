@@ -73,6 +73,14 @@ impl MatF64 {
         }
     }
 
+    pub fn empty(rows: usize, cols: usize) -> MatF64 {
+        MatF64 {
+            data: vec![],
+            rows,
+            cols,
+        }
+    }
+
     pub fn zeros_row(cols: usize) -> MatF64 {
         MatF64 {
             data: vec![0.0; cols],
@@ -81,11 +89,11 @@ impl MatF64 {
         }
     }
 
-    pub fn clone_zero(other : &MatF64) -> MatF64{
-        MatF64{
+    pub fn clone_zero(other: &MatF64) -> MatF64 {
+        MatF64 {
             data: vec![0.0; other.rows * other.cols],
             rows: other.rows,
-            cols: other.cols
+            cols: other.cols,
         }
     }
 
@@ -103,6 +111,16 @@ impl MatF64 {
             rows: 1,
             cols,
         }
+    }
+
+    pub fn add_row(&mut self, row: &[f64]) {
+        assert!(row.len() == self.cols);
+        self.rows += 1;
+        self.data.extend_from_slice(row);
+    }
+
+    pub fn chunk_row(&self, chunk: usize) -> impl Iterator<Item = &[f64]> {
+        (0..chunk).map(move |i| &self.data[i * self.cols..(i + 1) * self.cols])
     }
 
     pub fn rows(&self) -> usize {
@@ -170,6 +188,11 @@ impl MatF64 {
         self.data = out;
     }
 
+    pub fn get_row(&self, row: usize) -> &[f64] {
+        assert!(row <= self.rows);
+        &self.data[row * self.cols..(row + 1) * self.cols]
+    }
+
     pub fn len(&self) -> usize {
         self.data.len()
     }
@@ -206,7 +229,7 @@ impl std::fmt::Display for MatF64 {
         for r in 0..self.rows {
             out += "(";
             for c in 0..self.cols {
-               out += &format!("{:.5} ", self[(r, c)]);
+                out += &format!("{:.5} ", self[(r, c)]);
             }
             out += ")\n";
         }

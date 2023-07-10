@@ -23,6 +23,10 @@ impl Model {
         }
     }
 
+    pub fn set_activation(&mut self, activation: Activation) {
+        self.activation = activation;
+    }
+
     pub fn forward(&self, input: &MatF64) -> Vec<MatF64> {
         assert_eq!(input.len(), self.weights[0].rows());
 

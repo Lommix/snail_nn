@@ -18,4 +18,20 @@ impl TrainingBatch {
     pub fn len(&self) -> usize {
         self.input.len()
     }
+
+    pub fn random_chunk(&self, size: usize) -> Self {
+
+        let mut input = MatF64::empty(0, self.input.cols());
+        let mut expected = MatF64::empty(0, self.expected.cols());
+
+        for i in 0..size {
+
+            let index = rand::random::<usize>() % self.input.rows();
+            input.add_row(self.input.get_row(index));
+            expected.add_row(self.expected.get_row(index));
+
+        }
+
+        TrainingBatch::new(input, expected)
+    }
 }
