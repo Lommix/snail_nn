@@ -3,12 +3,13 @@ use crate::mat::MatF64;
 pub struct TrainingBatch {
     pub input: MatF64,
     pub expected: MatF64,
+    index : usize,
 }
 
 impl TrainingBatch {
     pub fn new(input: MatF64, expected: MatF64) -> TrainingBatch {
         assert_eq!(input.rows(), expected.rows());
-        TrainingBatch { input, expected }
+        TrainingBatch { input, expected, index: 0 }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = (&[f64], &[f64])> {
@@ -19,14 +20,35 @@ impl TrainingBatch {
         self.input.len()
     }
 
-    pub fn random_chunk(&self, size: usize) -> Self {
+    pub fn next_chunk(&mut self, size: usize) -> Self {
 
         let mut input = MatF64::empty(0, self.input.cols());
         let mut expected = MatF64::empty(0, self.expected.cols());
 
         for i in 0..size {
 
-            let index = rand::random::<usize>() % self.input.rows();
+            let index = ( self.index + i ) % self.input.rows();
+
+            input.add_row(self.input.get_row(index));
+            expected.add_row(self.expected.get_row(index));
+
+            self.index += 1;
+        }
+
+        TrainingBatch::new(input, expected)
+    }
+
+    pub fn random_chunk(&self, size: usize) -> Self {
+
+        let mut input = MatF64::empty(0, self.input.cols());
+        let mut expected = MatF64::empty(0, self.expected.cols());
+
+        let offset = rand::random::<usize>();
+
+        for i in 0..size {
+
+            let index = ( offset + i ) % self.input.rows();
+
             input.add_row(self.input.get_row(index));
             expected.add_row(self.expected.get_row(index));
 

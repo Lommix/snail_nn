@@ -7,6 +7,9 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
+eframe = "0.22.0"
+egui = "0.22.0"
+egui_extras = {version ="0.22.0", features = ["image"]}
 image = "0.24.6"
 rand = "0.8.5"
 rayon = "1.7.0"
