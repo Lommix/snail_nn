@@ -80,8 +80,10 @@ impl Model {
             let expected = MatF64::row_from_slice(e);
 
             let activation = self.forward(&input);
-            let output = activation.last().unwrap();
-            let error = output - &expected;
+            let output = activation.last().unwrap().clone();
+            // output.iter_mut().for_each(|x| *x *= 2.0);
+
+            let error = &output - &expected;
 
             let mut current_error = error;
 
@@ -157,6 +159,7 @@ fn test_forward() {
     let model = Model::new(&[2, 3, 1]);
     let input = MatF64::random_rows(2);
     let output = model.forward(&input);
+    assert_eq!(output.len(), 3);
 }
 
 #[test]

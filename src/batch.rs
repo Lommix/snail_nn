@@ -27,7 +27,8 @@ impl TrainingBatch {
 
         for i in 0..size {
 
-            let index = ( self.index + i ) % self.input.rows();
+            let offset = rand::random::<usize>() % 3;
+            let index = ( self.index + i + offset) % self.input.rows();
 
             input.add_row(self.input.get_row(index));
             expected.add_row(self.expected.get_row(index));
@@ -44,6 +45,7 @@ impl TrainingBatch {
         let mut expected = MatF64::empty(0, self.expected.cols());
 
         let offset = rand::random::<usize>();
+
 
         for i in 0..size {
 

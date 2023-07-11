@@ -6,11 +6,11 @@ use std::{
 };
 
 use eframe::egui;
-use egui::{TextureId, plot::Plot};
+use egui::{plot::Plot, TextureId};
 use egui_extras::RetainedImage;
 use snail_nn::prelude::*;
 
-const ascii_grayscale: &str = " ´.,+=*#$@";
+const ASCII_GRAYSCALE: &str = " ´.,+=*#$@";
 
 fn load_image(path: &str) -> (usize, usize, image::RgbImage) {
     let image = image::open(path).unwrap();
@@ -23,6 +23,7 @@ fn load_image(path: &str) -> (usize, usize, image::RgbImage) {
 
 #[derive(Default, Debug, Clone)]
 pub struct NContext {
+    original: image::GrayImage,
     image_out: image::GrayImage,
     learning_rate: f64,
     cost: f64,
@@ -41,8 +42,9 @@ struct App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ctx.request_repaint_after(Duration::from_secs_f32(1.0/60.0));
+            ctx.request_repaint_after(Duration::from_secs_f32(1.0 / 60.0));
 
+            let mut org: image::GrayImage;
             let mut img: image::GrayImage;
             let mut cost: f64;
             let mut epoch: u128;
@@ -52,11 +54,13 @@ impl eframe::App for App {
                 img = c.image_out.clone();
                 cost = c.cost;
                 epoch = c.epoch;
+                org = c.original.clone();
 
                 self.cost.push(c.cost.clone());
             }
 
             let mut i = Vec::new();
+            let mut j = Vec::new();
 
             img.pixels().for_each(|p| {
                 i.push(p.0[0]);
@@ -64,18 +68,31 @@ impl eframe::App for App {
                 i.push(p.0[0]);
             });
 
+            org.pixels().for_each(|p| {
+                j.push(p.0[0]);
+                j.push(p.0[0]);
+                j.push(p.0[0]);
+            });
+
+            // -------- imagined image
             let color_image = egui::ColorImage::from_rgb(
                 [img.width() as usize, img.height() as usize],
                 i.as_slice(),
             );
-
             let mut img = RetainedImage::from_color_image("lol", color_image);
             let size = egui::Vec2::new(img.width() as f32, img.height() as f32);
 
-            ui.label(format!("Epoch: {}  Cost: {}", epoch, cost));
+            // -------- original image
+            let o = egui::ColorImage::from_rgb(
+                [org.width() as usize, org.height() as usize],
+                j.as_slice(),
+            );
+            let mut original = RetainedImage::from_color_image("lol", o);
+            let osize = egui::Vec2::new(org.width() as f32, org.height() as f32);
 
+            ui.label(format!("Epoch: {}  Cost: {}", epoch, cost));
             ui.add(
-                egui::Slider::new(&mut self.context.lock().unwrap().learning_rate, 0.01..=5.0)
+                egui::Slider::new(&mut self.context.lock().unwrap().learning_rate, 0.00..=5.0)
                     .text("Learning rate"),
             );
             let line = egui::plot::Line::new(
@@ -86,11 +103,13 @@ impl eframe::App for App {
                     .collect::<egui::plot::PlotPoints>(),
             );
 
-            Plot::new("cost").view_aspect(4.0).width(size.x * 5.0).show(ui, |p|{
-                p.line(line)
-            });
+            Plot::new("cost")
+                .view_aspect(4.0)
+                .width(size.x * 5.0)
+                .show(ui, |p| p.line(line));
 
             ui.image(img.texture_id(ctx), size * 5.0);
+            ui.image(original.texture_id(ctx), osize);
         });
     }
 }
@@ -98,7 +117,7 @@ impl eframe::App for App {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let (h, w, img) = load_image("./assets/3.png");
+    let (h, w, img) = load_image("./assets/patrick.png");
 
     let img_data = img
         .chunks(3)
@@ -117,13 +136,24 @@ fn main() {
     });
 
     let mut batch = TrainingBatch::new(input, expected);
-    let mut nn = Model::new(&[2, 9, 9, 1]);
+    let mut nn = Model::new(&[2, 12, 6, 1]);
     let mut epoch: u128 = 0;
 
     nn.set_activation(Activation::Sigmoid);
-    let mut learning_rate = 5.0;
+    let mut learning_rate = 6.0;
 
-    let context = Arc::new(Mutex::new(NContext::default()));
+    let context = Arc::new(Mutex::new(NContext {
+        learning_rate,
+        original: image::GrayImage::from_vec(
+            h as u32,
+            w as u32,
+            img.chunks(3)
+                .map(|x| ((x.iter().map(|n| *n as u32).sum::<u32>() / 3) as u8))
+                .collect::<Vec<u8>>(),
+        )
+        .unwrap(),
+        ..Default::default()
+    }));
 
     let ctx = context.clone();
 
@@ -161,24 +191,13 @@ fn main() {
     eframe::run_native(
         "Snail-NN Demo",
         options,
-        Box::new(|cc| Box::new(App { context: context, cost: Vec::new() })),
+        Box::new(|cc| {
+            Box::new(App {
+                context,
+                cost: Vec::new(),
+            })
+        }),
     );
-}
-
-fn image(data: &Vec<f64>, width: usize, height: usize) -> String {
-    let mut text = String::new();
-    for y in 0..height {
-        for x in 0..width {
-            let s = data[y * width + x];
-            let grayscale = (ascii_grayscale.len() - 2) as f64 * s;
-            text += &format!(
-                " {}",
-                ascii_grayscale.chars().nth(grayscale as usize).unwrap()
-            );
-        }
-        text += &format!("\n");
-    }
-    text
 }
 
 fn imagine_img(nn: &Model, width: usize, height: usize) -> Vec<f64> {
@@ -193,24 +212,4 @@ fn imagine_img(nn: &Model, width: usize, height: usize) -> Vec<f64> {
         }
     }
     output
-}
-
-fn imagine(nn: &mut Model, width: usize, height: usize) -> String {
-    let mut text = String::new();
-    for y in 0..height {
-        for x in 0..width {
-            let xf = x as f64 / width as f64;
-            let yf = y as f64 / height as f64;
-
-            let input = MatF64::row_from_slice(&[xf, yf]);
-            let out = nn.forward(&input).last().unwrap()[(0, 0)];
-            let grayscale = (ascii_grayscale.len() - 2) as f64 * out.abs().clamp(0.0, 1.0);
-            text += &format!(
-                " {}",
-                ascii_grayscale.chars().nth(grayscale as usize).unwrap()
-            );
-        }
-        text += &format!("\n");
-    }
-    text
 }

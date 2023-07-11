@@ -1,4 +1,3 @@
-#![feature(macro_metavar_expr)]
 use std::ops;
 
 #[macro_export]
@@ -50,8 +49,8 @@ impl MatF64 {
     pub fn new(slice: &[f64], rows: usize, cols: usize) -> MatF64 {
         MatF64 {
             data: slice.to_vec(),
-            cols: cols,
-            rows: rows,
+            cols,
+            rows,
         }
     }
 
@@ -295,7 +294,7 @@ impl ops::MulAssign<&MatF64> for MatF64 {
 
 #[test]
 fn test_split() {
-    let mut m = mat!((4, 3, 5), (1, 2, 5), (3, 4, 6));
+    let m = mat!((4, 3, 5), (1, 2, 5), (3, 4, 6));
 
     let (left, right) = m.split_v(2);
 
