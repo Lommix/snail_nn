@@ -1,6 +1,9 @@
 #![allow(unused)]
 
-use std::{sync::{Arc, Mutex}, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 use eframe::egui;
 use egui::TextureId;
@@ -18,35 +21,57 @@ fn load_image(path: &str) -> (usize, usize, image::RgbImage) {
     )
 }
 
+#[derive(Default, Debug, Clone)]
+pub struct NContext {
+    image_out: image::GrayImage,
+    cost: f64,
+    epoch: u128,
+}
+
+unsafe impl Sync for NContext {}
+unsafe impl Send for NContext {}
+
 #[derive(Default)]
 struct App {
-    image_data: Arc<Mutex<image::GrayImage>>,
+    context: Arc<Mutex<NContext>>,
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-
             ctx.request_repaint_after(Duration::from_millis(100));
 
-            let data : image::GrayImage = self.image_data.lock().unwrap().clone();
+            let mut img: image::GrayImage;
+            let mut cost: f64;
+            let mut epoch: u128;
 
-            // ui.image(texture_id, size)
+            {
+                let c = self.context.lock().unwrap();
+                img = c.image_out.clone();
+                cost = c.cost;
+                epoch = c.epoch;
+            }
 
             let mut i = Vec::new();
-            data.pixels().for_each(|p|{
+            img.pixels().for_each(|p| {
                 i.push(p.0[0]);
                 i.push(p.0[0]);
                 i.push(p.0[0]);
             });
 
             let color_image = egui::ColorImage::from_rgb(
-                    [data.width() as usize, data.height() as usize],
-                    i.as_slice(),
-                );
+                [img.width() as usize, img.height() as usize],
+                i.as_slice(),
+            );
 
             let mut img = RetainedImage::from_color_image("lol", color_image);
-            let size = egui::Vec2::new(data.width() as f32, data.height() as f32);
+            let size = egui::Vec2::new(img.width() as f32, img.height() as f32);
+
+            ui.label("Epoch: ");
+            ui.text_edit_singleline(&mut epoch.to_string());
+            ui.label("Cost: ");
+            ui.text_edit_singleline(&mut cost.to_string());
+
             ui.image(img.texture_id(ctx), size * 5.0);
         });
     }
@@ -80,9 +105,9 @@ fn main() {
     nn.set_activation(Activation::Sigmoid);
     let learning_rate = 1.0;
 
-    let image_data: Arc<Mutex<image::GrayImage>> =
-        Arc::new(Mutex::new(image::GrayImage::new(100, 100)));
-    let img_data = image_data.clone();
+    let context = Arc::new(Mutex::new(NContext::default()));
+
+    let ctx = context.clone();
 
     let handle = std::thread::spawn(move || {
         loop {
@@ -95,9 +120,18 @@ fn main() {
                 let mut imagined = imagine_img(&mut nn, 100, 100);
                 let cost = nn.cost(&batch);
 
-                let b = imagined.iter().map(|x| ( x.clone() * 255.0 ) as u8).collect::<Vec<u8>>();
+                let b = imagined
+                    .iter()
+                    .map(|x| (x.clone() * 255.0) as u8)
+                    .collect::<Vec<u8>>();
                 let image = image::GrayImage::from_vec(100, 100, b).unwrap();
-                *img_data.lock().unwrap() = image
+
+                {
+                    let mut c = ctx.lock().unwrap();
+                    c.cost = cost;
+                    c.epoch = epoch;
+                    c.image_out = image;
+                }
 
                 // print!("{esc}c", esc = 27 as char);
                 // print!("epoch: {} cost: {} \n", epoch, cost);
@@ -113,11 +147,7 @@ fn main() {
     eframe::run_native(
         "Snail nn Demo",
         options,
-        Box::new(|cc| {
-            Box::new(App {
-                image_data: image_data,
-            })
-        }),
+        Box::new(|cc| Box::new(App { context: context })),
     );
 
     // ---------------------------------------
