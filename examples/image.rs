@@ -1,6 +1,6 @@
 #![allow(unused)]
 
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, time::Duration};
 
 use eframe::egui;
 use egui::TextureId;
@@ -26,7 +26,9 @@ struct App {
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("Hello world!");
+
+            ctx.request_repaint_after(Duration::from_millis(100));
+
             let data : image::GrayImage = self.image_data.lock().unwrap().clone();
 
             // ui.image(texture_id, size)
@@ -45,7 +47,7 @@ impl eframe::App for App {
 
             let mut img = RetainedImage::from_color_image("lol", color_image);
             let size = egui::Vec2::new(data.width() as f32, data.height() as f32);
-            ui.image(img.texture_id(ctx), size);
+            ui.image(img.texture_id(ctx), size * 5.0);
         });
     }
 }
@@ -72,11 +74,11 @@ fn main() {
     });
 
     let mut batch = TrainingBatch::new(input, expected);
-    let mut nn = Model::new(&[2, 9, 9, 1]);
+    let mut nn = Model::new(&[2, 24, 10, 1]);
     let mut epoch: u128 = 0;
 
     nn.set_activation(Activation::Sigmoid);
-    let learning_rate = 3.0;
+    let learning_rate = 1.0;
 
     let image_data: Arc<Mutex<image::GrayImage>> =
         Arc::new(Mutex::new(image::GrayImage::new(100, 100)));
@@ -93,17 +95,6 @@ fn main() {
                 let mut imagined = imagine_img(&mut nn, 100, 100);
                 let cost = nn.cost(&batch);
 
-                // img_data
-                //     .lock()
-                //     .unwrap()
-                //     .pixels_mut()
-                //     .enumerate()
-                //     .for_each(|(i, p)| {
-                //         let pixel = ((imagined[i].clone() * 255.0) as u8);
-                //         *p = image::Luma([pixel]);
-                //         // (( imagined[i] * 255.0 ) as u8 ).into();
-                //     });
-
                 let b = imagined.iter().map(|x| ( x.clone() * 255.0 ) as u8).collect::<Vec<u8>>();
                 let image = image::GrayImage::from_vec(100, 100, b).unwrap();
                 *img_data.lock().unwrap() = image
@@ -118,6 +109,7 @@ fn main() {
     });
 
     let options = eframe::NativeOptions::default();
+
     eframe::run_native(
         "Snail nn Demo",
         options,
