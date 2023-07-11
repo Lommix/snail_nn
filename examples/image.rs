@@ -6,7 +6,7 @@ use std::{
 };
 
 use eframe::egui;
-use egui::TextureId;
+use egui::{TextureId, plot::Plot};
 use egui_extras::RetainedImage;
 use snail_nn::prelude::*;
 
@@ -24,6 +24,7 @@ fn load_image(path: &str) -> (usize, usize, image::RgbImage) {
 #[derive(Default, Debug, Clone)]
 pub struct NContext {
     image_out: image::GrayImage,
+    learning_rate: f64,
     cost: f64,
     epoch: u128,
 }
@@ -34,12 +35,13 @@ unsafe impl Send for NContext {}
 #[derive(Default)]
 struct App {
     context: Arc<Mutex<NContext>>,
+    cost: Vec<f64>,
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
-            ctx.request_repaint_after(Duration::from_millis(100));
+            ctx.request_repaint_after(Duration::from_secs_f32(1.0/60.0));
 
             let mut img: image::GrayImage;
             let mut cost: f64;
@@ -50,9 +52,12 @@ impl eframe::App for App {
                 img = c.image_out.clone();
                 cost = c.cost;
                 epoch = c.epoch;
+
+                self.cost.push(c.cost.clone());
             }
 
             let mut i = Vec::new();
+
             img.pixels().for_each(|p| {
                 i.push(p.0[0]);
                 i.push(p.0[0]);
@@ -67,10 +72,23 @@ impl eframe::App for App {
             let mut img = RetainedImage::from_color_image("lol", color_image);
             let size = egui::Vec2::new(img.width() as f32, img.height() as f32);
 
-            ui.label("Epoch: ");
-            ui.text_edit_singleline(&mut epoch.to_string());
-            ui.label("Cost: ");
-            ui.text_edit_singleline(&mut cost.to_string());
+            ui.label(format!("Epoch: {}  Cost: {}", epoch, cost));
+
+            ui.add(
+                egui::Slider::new(&mut self.context.lock().unwrap().learning_rate, 0.01..=5.0)
+                    .text("Learning rate"),
+            );
+            let line = egui::plot::Line::new(
+                self.cost
+                    .iter()
+                    .enumerate()
+                    .map(|(i, p)| [i as f64, p.clone()])
+                    .collect::<egui::plot::PlotPoints>(),
+            );
+
+            Plot::new("cost").view_aspect(4.0).width(size.x * 5.0).show(ui, |p|{
+                p.line(line)
+            });
 
             ui.image(img.texture_id(ctx), size * 5.0);
         });
@@ -80,7 +98,7 @@ impl eframe::App for App {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let (h, w, img) = load_image("./assets/marc.png");
+    let (h, w, img) = load_image("./assets/3.png");
 
     let img_data = img
         .chunks(3)
@@ -99,11 +117,11 @@ fn main() {
     });
 
     let mut batch = TrainingBatch::new(input, expected);
-    let mut nn = Model::new(&[2, 24, 10, 1]);
+    let mut nn = Model::new(&[2, 9, 9, 1]);
     let mut epoch: u128 = 0;
 
     nn.set_activation(Activation::Sigmoid);
-    let learning_rate = 1.0;
+    let mut learning_rate = 5.0;
 
     let context = Arc::new(Mutex::new(NContext::default()));
 
@@ -112,7 +130,8 @@ fn main() {
     let handle = std::thread::spawn(move || {
         loop {
             epoch += 1;
-            let (wg, bg) = nn.gradient(&batch.random_chunk(16));
+            let (wg, bg) = nn.gradient(&batch.random_chunk(32));
+
             nn.learn(wg, bg, learning_rate);
 
             if epoch % 100 == 0 {
@@ -131,13 +150,8 @@ fn main() {
                     c.cost = cost;
                     c.epoch = epoch;
                     c.image_out = image;
+                    learning_rate = c.learning_rate;
                 }
-
-                // print!("{esc}c", esc = 27 as char);
-                // print!("epoch: {} cost: {} \n", epoch, cost);
-                // println!("-----------------");
-                // // print!("{}", original);
-                // print!("{}", imagined);
             }
         }
     });
@@ -145,29 +159,10 @@ fn main() {
     let options = eframe::NativeOptions::default();
 
     eframe::run_native(
-        "Snail nn Demo",
+        "Snail-NN Demo",
         options,
-        Box::new(|cc| Box::new(App { context: context })),
+        Box::new(|cc| Box::new(App { context: context, cost: Vec::new() })),
     );
-
-    // ---------------------------------------
-    // loop {
-    //     epoch += 1;
-    //     let (wg, bg) = nn.gradient(&batch.random_chunk(16));
-    //     nn.learn(wg, bg, learning_rate);
-    //
-    //     if epoch % 100 == 0 {
-    //         let original = image(&img_data, w, h);
-    //         let imagined = imagine(&mut nn, 60, 60);
-    //         let cost = nn.cost(&batch);
-    //
-    //         print!("{esc}c", esc = 27 as char);
-    //         print!("epoch: {} cost: {} \n", epoch, cost);
-    //         println!("-----------------");
-    //         // print!("{}", original);
-    //         print!("{}", imagined);
-    //     }
-    // }
 }
 
 fn image(data: &Vec<f64>, width: usize, height: usize) -> String {
