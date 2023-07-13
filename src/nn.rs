@@ -1,4 +1,6 @@
+extern crate test;
 use crate::{act::Activation, batch::TrainingBatch, mat::MatF64};
+use rayon::prelude::*;
 
 pub struct Model {
     weights: Vec<MatF64>,
@@ -75,52 +77,81 @@ impl Model {
         let mut bias_gradient: Vec<MatF64> =
             self.biases.iter().map(|m| MatF64::clone_zero(m)).collect();
 
-        batch.iter().for_each(|(i, e)| {
-            let input = MatF64::row_from_slice(i);
-            let expected = MatF64::row_from_slice(e);
+        let o = batch
+            .iter()
+            .par_bridge()
+            .map(|(i, e)| {
+                let mut wout: Vec<MatF64> = Vec::new();
+                let mut bout: Vec<MatF64> = Vec::new();
 
-            let activation = self.forward(&input);
-            let output = activation.last().unwrap().clone();
-            // output.iter_mut().for_each(|x| *x *= 2.0);
+                let input = MatF64::row_from_slice(i);
+                let expected = MatF64::row_from_slice(e);
 
-            let error = &output - &expected;
+                let activation = self.forward(&input);
+                let output = activation.last().unwrap().clone();
+                // output.iter_mut().for_each(|x| *x *= 2.0);
 
-            let mut current_error = error;
+                let error = &output - &expected;
 
-            for l in (1..activation.len()).rev() {
-                let mut delta = activation[l].clone();
+                let mut current_error = error;
 
-                delta
-                    .iter_mut()
-                    .for_each(|x| *x = self.activation.derivative(*x));
+                for l in (1..activation.len()).rev() {
+                    let mut delta = activation[l].clone();
 
-                delta *= current_error;
+                    delta
+                        .iter_mut()
+                        .for_each(|x| *x = self.activation.derivative(*x));
 
-                let mut prev_weights = self.weights[l - 1].clone();
-                prev_weights.transpose();
+                    delta *= current_error;
 
-                let prev_error = delta.dot(&prev_weights);
+                    let mut prev_weights = self.weights[l - 1].clone();
+                    prev_weights.transpose();
 
-                let mut prev_activation = activation[l - 1].clone();
-                prev_activation.transpose();
+                    let prev_error = delta.dot(&prev_weights);
 
-                let wdelta = prev_activation.dot(&delta);
+                    let mut prev_activation = activation[l - 1].clone();
+                    prev_activation.transpose();
 
-                current_error = prev_error;
+                    let wdelta = prev_activation.dot(&delta);
 
-                // -----------------------------------------
-                weight_gradient[l - 1]
-                    .iter_mut()
-                    .zip(wdelta.iter())
-                    .for_each(|(a, b)| *a += *b);
+                    current_error = prev_error;
 
-                bias_gradient[l - 1]
-                    .iter_mut()
-                    .zip(delta.iter())
-                    .for_each(|(a, b)| *a += *b);
-            }
+                    wout.push(wdelta);
+                    bout.push(delta);
+
+                    // -----------------------------------------
+                    // weight_gradient[l - 1]
+                    //     .iter_mut()
+                    //     .zip(wdelta.iter())
+                    //     .for_each(|(a, b)| *a += *b);
+                    //
+                    // bias_gradient[l - 1]
+                    //     .iter_mut()
+                    //     .zip(delta.iter())
+                    //     .for_each(|(a, b)| *a += *b);
+                    //
+                }
+
+                wout.reverse();
+                bout.reverse();
+
+                (wout, bout)
+            })
+            .collect::<Vec<(Vec<MatF64>, Vec<MatF64>)>>();
+
+        // --- sum gradient ---
+        o.iter().for_each(|(w, b)| {
+            weight_gradient
+                .iter_mut()
+                .zip(w.iter())
+                .for_each(|(a, b)| *a += b);
+            bias_gradient
+                .iter_mut()
+                .zip(b.iter())
+                .for_each(|(a, b)| *a += b);
         });
 
+        // --- avarage gradient ---
         for i in 0..self.weights.len() {
             weight_gradient[i]
                 .iter_mut()
@@ -160,6 +191,24 @@ fn test_forward() {
     let input = MatF64::random_rows(2);
     let output = model.forward(&input);
     assert_eq!(output.len(), 3);
+}
+
+#[bench]
+fn bench_old_forward(b: &mut test::Bencher) {
+    let model = Model::new(&[2, 9, 9, 1]);
+    let input = MatF64::random_rows(2);
+    b.iter(|| {
+        model.forward(&input);
+    })
+}
+
+#[bench]
+fn bench_old_dot(b: &mut test::Bencher) {
+    let m1 = MatF64::rand(3, 1);
+    let m2 = MatF64::random_rows(3);
+    b.iter(|| {
+        m1.dot(&m2);
+    })
 }
 
 #[test]

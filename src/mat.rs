@@ -33,13 +33,10 @@ pub fn mat_dot(out: &mut MatF64, lhs: &MatF64, rhs: &MatF64) {
     assert_eq!(lhs.cols, rhs.rows);
     assert_eq!(out.rows, lhs.rows);
     assert_eq!(out.cols, rhs.cols);
-
-    // let m = mat!((0, 3), (0, 3), (0, 3),);
-
     for r in 0..out.rows {
         for c in 0..out.cols {
-            for d in 0..lhs.cols {
-                out[(r, c)] += lhs[(r, d)] * rhs[(d, c)];
+            for i in 0..lhs.cols {
+                out[(r, c)] += lhs[(r, i)] * rhs[(i, c)];
             }
         }
     }
@@ -264,6 +261,16 @@ impl ops::Sub for MatF64 {
 
 impl ops::AddAssign for MatF64 {
     fn add_assign(&mut self, other: MatF64) {
+        assert_eq!(self.rows, other.rows);
+        assert_eq!(self.cols, other.cols);
+        for i in 0..self.data.len() {
+            self.data[i] += other.data[i];
+        }
+    }
+}
+
+impl ops::AddAssign<&MatF64>for MatF64 {
+    fn add_assign(&mut self, other: &MatF64) {
         assert_eq!(self.rows, other.rows);
         assert_eq!(self.cols, other.cols);
         for i in 0..self.data.len() {

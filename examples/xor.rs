@@ -1,3 +1,4 @@
+#![allow(unused)]
 use snail_nn::{mat, prelude::*};
 
 fn main() {

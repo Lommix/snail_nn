@@ -10,8 +10,6 @@ use egui::{plot::Plot, TextureId};
 use egui_extras::RetainedImage;
 use snail_nn::prelude::*;
 
-const ASCII_GRAYSCALE: &str = " ´.,+=*#$@";
-
 fn load_image(path: &str) -> (usize, usize, image::RgbImage) {
     let image = image::open(path).unwrap();
     (
@@ -117,7 +115,7 @@ impl eframe::App for App {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let (h, w, img) = load_image("./assets/marcb.png");
+    let (h, w, img) = load_image("./assets/3.png");
 
     let img_data = img
         .chunks(3)
@@ -139,8 +137,8 @@ fn main() {
     let mut nn = Model::new(&[2, 16, 8, 4, 1]);
     let mut epoch: u128 = 0;
 
-    nn.set_activation(Activation::Sigmoid);
-    let mut learning_rate = 6.0;
+    nn.set_activation(Activation::ReLU);
+    let mut learning_rate = 0.01;
 
     let context = Arc::new(Mutex::new(NContext {
         learning_rate,
@@ -160,7 +158,7 @@ fn main() {
     let handle = std::thread::spawn(move || {
         loop {
             epoch += 1;
-            let (wg, bg) = nn.gradient(&batch.random_chunk(32));
+            let (wg, bg) = nn.gradient(&batch.random_chunk(16));
 
             nn.learn(wg, bg, learning_rate);
 

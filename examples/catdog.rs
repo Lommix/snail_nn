@@ -1,26 +1,42 @@
+#![allow(unused)]
 use egui_extras::RetainedImage;
 use snail_nn::prelude::*;
-use std::sync::{Arc, Mutex};
+use std::{sync::{Arc, Mutex}, time::Duration};
 
 // -------------------------------------
 // init
-const FIRST_IMAGE_PATH: &str = "./assets/patrick.png";
-const SECOND_IMAGE_PATH: &str = "./assets/marc.png";
+const FIRST_IMAGE_PATH: &str = "./assets/dog.png";
+const SECOND_IMAGE_PATH: &str = "./assets/cat.png";
 // -------------------------------------
 fn main() {
     let context = Arc::new(Mutex::new(CatDogContext {
-        learning_rate: 0.1,
+        learning_rate: 6.0,
         lerp: 0.0,
         ..Default::default()
     }));
 
+    let ctx = context.clone();
     // --- nn thread
     let h = std::thread::spawn(move || {
         let mut epoch = 0;
         let mut model = Model::new(&[3, 16, 8, 1]);
+        let mut batch = load_taining_data();
+        let mut learning_rate = 4.0;
+        let mut lerp = 0.0;
         loop {
+
+            let (w, b) = model.gradient(&batch.random_chunk(32));
+            model.learn(w, b, learning_rate);
             epoch += 1;
-            if epoch % 100 == 0 {}
+
+            if epoch % 100 == 0 {
+                let output = imagine(100, 100, lerp, &model);
+                let mut c = ctx.lock().unwrap();
+                c.epoch = epoch;
+                c.out = output;
+                learning_rate = c.learning_rate;
+                lerp = c.lerp;
+            }
         }
     });
 
@@ -28,7 +44,7 @@ fn main() {
     eframe::run_native(
         "Ai Image Interpolation",
         eframe::NativeOptions::default(),
-        Box::new(|_cc| Box::new(CatDogApp { context: context })),
+        Box::new(|_cc| Box::new(CatDogApp { context })),
     );
 }
 // -------------------------------------
@@ -39,6 +55,8 @@ struct CatDogApp {
 impl eframe::App for CatDogApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
+            ctx.request_repaint_after(Duration::from_secs_f32(1.0 / 60.0));
+
             ui.add(
                 egui::Slider::new(&mut self.context.lock().unwrap().learning_rate, 0.0..=5.0)
                     .text("Learning Rate"),
@@ -47,6 +65,11 @@ impl eframe::App for CatDogApp {
                 egui::Slider::new(&mut self.context.lock().unwrap().lerp, 0.0..=1.0)
                     .text("Interpolation"),
             );
+
+            {
+                let image = gray_to_egui(&self.context.lock().unwrap().out);
+                ui.image(image.texture_id(ctx), egui::Vec2::new(300.0, 300.0))
+            }
         });
     }
 }
@@ -66,12 +89,21 @@ unsafe impl Sync for CatDogContext {}
 unsafe impl Send for CatDogContext {}
 // -------------------------------------
 // network stuff
-fn init_networt() {}
 fn load_taining_data() -> TrainingBatch {
-    let img_one = load_image(FIRST_IMAGE_PATH);
-    let img_two = load_image(SECOND_IMAGE_PATH);
-
-    TrainingBatch::new(MatF64::empty(0, 1), MatF64::empty(0, 1))
+    let (w_a, h_a, img_a) = load_image(FIRST_IMAGE_PATH);
+    let (w_b, h_b, img_b) = load_image(SECOND_IMAGE_PATH);
+    assert_eq!(w_a, w_b);
+    assert_eq!(h_a, h_b);
+    let mut batch = TrainingBatch::empty(3, 1);
+    for x in 0..w_a {
+        for y in 0..h_a {
+            let xf = (x as f64) / (w_a as f64);
+            let yf = (y as f64) / (h_a as f64);
+            batch.add(&[xf, yf, 0.0], &[img_a[(y * w_a + x) as usize]]);
+            batch.add(&[xf, yf, 1.0], &[img_b[(y * w_a + x) as usize]]);
+        }
+    }
+    batch
 }
 // -------------------------------------
 // utility functions
@@ -84,5 +116,32 @@ fn load_image(path: &str) -> (u32, u32, Vec<f64>) {
     (image.width(), image.height(), img_data)
 }
 fn vec_to_image(height: u32, width: u32, data: Vec<f64>) -> image::GrayImage {
-    image::GrayImage::from_vec(height, width, data.iter().map(|x| *x as u8).collect()).unwrap()
+    image::GrayImage::from_vec(height, width, data.iter().map(|x| ( *x * 255.0  )as u8).collect()).unwrap()
+}
+fn imagine(width: u32, height: u32, lerp: f64, nn: &Model) -> image::GrayImage {
+    let mut output: Vec<f64> = Vec::new();
+    for y in 0..height {
+        for x in 0..width {
+            let xf = x as f64 / width as f64;
+            let yf = y as f64 / height as f64;
+            let input = MatF64::row_from_slice(&[xf, yf, lerp]);
+            let out = nn.forward(&input).last().unwrap()[(0, 0)];
+            output.push(out);
+        }
+    }
+    vec_to_image(height, width, output)
+}
+
+fn gray_to_egui(img: &image::GrayImage) -> RetainedImage {
+    let mut pixels = Vec::new();
+    img.pixels().for_each(|p| {
+        pixels.push(p.0[0]);
+        pixels.push(p.0[0]);
+        pixels.push(p.0[0]);
+    });
+    let color_image = egui::ColorImage::from_rgb(
+        [img.width() as usize, img.height() as usize],
+        pixels.as_slice(),
+    );
+    RetainedImage::from_color_image("", color_image)
 }
