@@ -117,7 +117,7 @@ impl eframe::App for App {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    let (h, w, img) = load_image("./assets/patrick.png");
+    let (h, w, img) = load_image("./assets/marcb.png");
 
     let img_data = img
         .chunks(3)
@@ -136,7 +136,7 @@ fn main() {
     });
 
     let mut batch = TrainingBatch::new(input, expected);
-    let mut nn = Model::new(&[2, 12, 6, 1]);
+    let mut nn = Model::new(&[2, 16, 8, 4, 1]);
     let mut epoch: u128 = 0;
 
     nn.set_activation(Activation::Sigmoid);

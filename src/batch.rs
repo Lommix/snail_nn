@@ -7,6 +7,24 @@ pub struct TrainingBatch {
 }
 
 impl TrainingBatch {
+
+    pub fn empty(inpust_size: usize, output_size: usize) -> TrainingBatch {
+        TrainingBatch {
+            input: MatF64::empty(0, inpust_size),
+            expected: MatF64::empty(0, output_size),
+            index: 0,
+        }
+    }
+
+    pub fn add(&mut self, input: &[f64], expected: &[f64]) {
+
+        assert_eq!(input.len(), self.input.cols());
+        assert_eq!(expected.len(), self.expected.cols());
+
+        self.input.add_row(input);
+        self.expected.add_row(expected);
+    }
+
     pub fn new(input: MatF64, expected: MatF64) -> TrainingBatch {
         assert_eq!(input.rows(), expected.rows());
         TrainingBatch { input, expected, index: 0 }
