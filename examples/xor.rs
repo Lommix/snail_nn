@@ -2,8 +2,6 @@
 use snail_nn::{mat, prelude::*};
 
 fn main() {
-    std::env::set_var("RUST_BACKTRACE", "1");
-
     let mut nn = Model::new(&[2, 3, 3, 1]);
 
     let input = mat!((0, 1), (1, 0), (1, 1), (0, 0));
@@ -30,8 +28,8 @@ fn main() {
                 let i = MatF64::row_from_slice(x.0);
                 let o = MatF64::row_from_slice(x.1);
                 let out = nn.forward(&i);
-                print!("in: {}", i);
-                print!("out: {}", out.last().unwrap());
+                print!("in:[{}] --> ", i);
+                print!("out:[{}] ", out.last().unwrap());
                 print!("expected: {}", o);
                 print!("\n");
             });

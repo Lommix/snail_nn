@@ -13,7 +13,7 @@ const SECOND_IMAGE_PATH: &str = "./assets/4.png";
 // -------------------------------------
 fn main() {
     let context = Arc::new(Mutex::new(CatDogContext {
-        learning_rate: 0.01,
+        learning_rate: 5.0,
         lerp: 0.0,
         ..Default::default()
     }));
