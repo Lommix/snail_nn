@@ -40,7 +40,7 @@ batch.add(&[0.0, 1.0], &[0.0]);
 batch.add(&[1.0, 1.0], &[1.0]);
 
 for _ in 0..10000 {
-    let (w_gradient, b_gradient) = nn.gradient(&batch);
+    let (w_gradient, b_gradient) = nn.gradient(&batch.random_chunk(2));
     nn.learn(w_gradient, b_gradient, rate);
 }
 
