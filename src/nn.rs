@@ -121,18 +121,6 @@ impl Model {
 
                     wout.push(wdelta);
                     bout.push(delta);
-
-                    // -----------------------------------------
-                    // weight_gradient[l - 1]
-                    //     .iter_mut()
-                    //     .zip(wdelta.iter())
-                    //     .for_each(|(a, b)| *a += *b);
-                    //
-                    // bias_gradient[l - 1]
-                    //     .iter_mut()
-                    //     .zip(delta.iter())
-                    //     .for_each(|(a, b)| *a += *b);
-                    //
                 }
 
                 wout.reverse();

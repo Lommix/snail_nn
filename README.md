@@ -50,7 +50,7 @@ fn main(){
 }
 ```
 
-##  Freatures
+##  Features
 
 - Sigmoid, Tanh & Relu activation functions
 - Parallelized stochastic gradient descent
