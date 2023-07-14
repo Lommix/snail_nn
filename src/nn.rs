@@ -1,4 +1,3 @@
-extern crate test;
 use crate::{act::Activation, batch::TrainingBatch, mat::MatF64};
 use rayon::prelude::*;
 
@@ -197,23 +196,23 @@ fn test_forward() {
     assert_eq!(output.len(), 3);
 }
 
-#[bench]
-fn bench_old_forward(b: &mut test::Bencher) {
-    let model = Model::new(&[2, 9, 9, 1]);
-    let input = MatF64::random_rows(2);
-    b.iter(|| {
-        model.activate(&input);
-    })
-}
-
-#[bench]
-fn bench_old_dot(b: &mut test::Bencher) {
-    let m1 = MatF64::rand(3, 1);
-    let m2 = MatF64::random_rows(3);
-    b.iter(|| {
-        m1.dot(&m2);
-    })
-}
+// #[bench]
+// fn bench_forward(b: &mut test::Bencher) {
+//     let model = Model::new(&[2, 9, 9, 1]);
+//     let input = MatF64::random_rows(2);
+//     b.iter(|| {
+//         model.activate(&input);
+//     })
+// }
+//
+// #[bench]
+// fn bench_dot(b: &mut test::Bencher) {
+//     let m1 = MatF64::rand(3, 1);
+//     let m2 = MatF64::random_rows(3);
+//     b.iter(|| {
+//         m1.dot(&m2);
+//     })
+// }
 
 #[test]
 fn test_gradiant() {

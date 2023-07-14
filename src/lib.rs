@@ -1,6 +1,4 @@
 #![allow(unused)]
-#![feature(test)]
-
 pub mod mat;
 pub mod nn;
 pub mod act;

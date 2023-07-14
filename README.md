@@ -5,7 +5,7 @@ fully functional neural network libary with backpropagation and parallelized sto
 
 ## Examles
 
-Storing images inside the neural network and interpolate between them. Rendering done with egui.
+Storing images inside the neural network, upscaling and interpolate between them.
 
 
 ```bash
@@ -29,22 +29,25 @@ Example Code:
 ```rust
 use snail_nn::prelude::*;
 
-let mut nn = Model::new(&[2, 3, 1]);
-let mut batch = TrainingBatch::empty(2, 1);
-let rate = 1.0;
-nn.set_activation(Activation::Sigmoid)
+fn main(){
+    let mut nn = Model::new(&[2, 3, 1]);
+    nn.set_activation(Activation::Sigmoid)
 
-batch.add(&[0.0, 0.0], &[0.0]);
-batch.add(&[1.0, 0.0], &[0.0]);
-batch.add(&[0.0, 1.0], &[0.0]);
-batch.add(&[1.0, 1.0], &[1.0]);
+    let mut batch = TrainingBatch::empty(2, 1);
+    let rate = 1.0;
 
-for _ in 0..10000 {
-    let (w_gradient, b_gradient) = nn.gradient(&batch.random_chunk(2));
-    nn.learn(w_gradient, b_gradient, rate);
+    batch.add(&[0.0, 0.0], &[0.0]);
+    batch.add(&[1.0, 0.0], &[0.0]);
+    batch.add(&[0.0, 1.0], &[0.0]);
+    batch.add(&[1.0, 1.0], &[1.0]);
+
+    for _ in 0..10000 {
+        let (w_gradient, b_gradient) = nn.gradient(&batch.random_chunk(2));
+        nn.learn(w_gradient, b_gradient, rate);
+    }
+
+    println!("{:?}", nn.forward(&[0.0, 0.0]));
 }
-
-println!("{:?}", nn.forward(&[0.0, 0.0]));
 ```
 
 ##  Freatures
