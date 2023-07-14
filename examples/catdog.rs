@@ -1,16 +1,19 @@
-#![allow(unused)]
+use egui::plot::Plot;
 use egui_extras::RetainedImage;
 use snail_nn::prelude::*;
-use std::{sync::{Arc, Mutex}, time::Duration};
+use std::{
+    sync::{Arc, Mutex},
+    time::Duration,
+};
 
 // -------------------------------------
-// init
-const FIRST_IMAGE_PATH: &str = "./assets/dog.png";
-const SECOND_IMAGE_PATH: &str = "./assets/cat.png";
+// train resources
+const FIRST_IMAGE_PATH: &str = "./assets/3.png";
+const SECOND_IMAGE_PATH: &str = "./assets/4.png";
 // -------------------------------------
 fn main() {
     let context = Arc::new(Mutex::new(CatDogContext {
-        learning_rate: 6.0,
+        learning_rate: 0.01,
         lerp: 0.0,
         ..Default::default()
     }));
@@ -19,21 +22,23 @@ fn main() {
     // --- nn thread
     let h = std::thread::spawn(move || {
         let mut epoch = 0;
-        let mut model = Model::new(&[3, 16, 8, 1]);
+        let mut model = Model::new(&[3, 15, 9, 1]);
         let mut batch = load_taining_data();
-        let mut learning_rate = 4.0;
+        let mut learning_rate = 0.0;
         let mut lerp = 0.0;
-        loop {
 
-            let (w, b) = model.gradient(&batch.random_chunk(32));
+        loop {
+            let (w, b) = model.gradient(&batch.next_chunk(32));
             model.learn(w, b, learning_rate);
             epoch += 1;
 
             if epoch % 100 == 0 {
                 let output = imagine(100, 100, lerp, &model);
+                let cost = model.cost(&batch);
                 let mut c = ctx.lock().unwrap();
                 c.epoch = epoch;
                 c.out = output;
+                c.cost = cost;
                 learning_rate = c.learning_rate;
                 lerp = c.lerp;
             }
@@ -44,18 +49,47 @@ fn main() {
     eframe::run_native(
         "Ai Image Interpolation",
         eframe::NativeOptions::default(),
-        Box::new(|_cc| Box::new(CatDogApp { context })),
+        Box::new(|_cc| {
+            Box::new(CatDogApp {
+                context,
+                cost: Vec::new(),
+                ref_1: RetainedImage::from_image_bytes("one", include_bytes!("../assets/3.png"))
+                    .unwrap(),
+                ref_2: RetainedImage::from_image_bytes("one", include_bytes!("../assets/4.png"))
+                    .unwrap(),
+            })
+        }),
     );
 }
 // -------------------------------------
 // egui
 struct CatDogApp {
     context: Arc<Mutex<CatDogContext>>,
+    cost: Vec<f64>,
+    ref_1: RetainedImage,
+    ref_2: RetainedImage,
 }
 impl eframe::App for CatDogApp {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         egui::CentralPanel::default().show(ctx, |ui| {
             ctx.request_repaint_after(Duration::from_secs_f32(1.0 / 60.0));
+
+            let mut epoch: u128;
+
+            {
+                let c = self.context.lock().unwrap();
+                self.cost.push(c.cost);
+                epoch = c.epoch;
+            }
+
+            ui.colored_label(
+                egui::Color32::WHITE,
+                format!(
+                    "Epoch: {} Cost: {}",
+                    epoch,
+                    self.cost.last().unwrap_or(&0.0)
+                ),
+            );
 
             ui.add(
                 egui::Slider::new(&mut self.context.lock().unwrap().learning_rate, 0.0..=5.0)
@@ -66,23 +100,31 @@ impl eframe::App for CatDogApp {
                     .text("Interpolation"),
             );
 
+            Plot::new("Costgraph")
+                .view_aspect(4.0)
+                .width(600.0)
+                .show(ui, |p| p.line(line_from_vec(&self.cost)));
+
             {
                 let image = gray_to_egui(&self.context.lock().unwrap().out);
-                ui.image(image.texture_id(ctx), egui::Vec2::new(300.0, 300.0))
+                ui.image(image.texture_id(ctx), egui::Vec2::new(600.0, 600.0));
             }
+
+            ui.horizontal(|ui| {
+                ui.image(self.ref_1.texture_id(ctx), egui::Vec2::new(100.0, 100.0));
+                ui.image(self.ref_2.texture_id(ctx), egui::Vec2::new(100.0, 100.0));
+            });
         });
     }
 }
 // -------------------------------------
 // context
-#[derive(Default, Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 struct CatDogContext {
     learning_rate: f64,
     lerp: f64,
     cost: f64,
     epoch: u128,
-    in_one: image::GrayImage,
-    in_two: image::GrayImage,
     out: image::GrayImage,
 }
 unsafe impl Sync for CatDogContext {}
@@ -116,7 +158,12 @@ fn load_image(path: &str) -> (u32, u32, Vec<f64>) {
     (image.width(), image.height(), img_data)
 }
 fn vec_to_image(height: u32, width: u32, data: Vec<f64>) -> image::GrayImage {
-    image::GrayImage::from_vec(height, width, data.iter().map(|x| ( *x * 255.0  )as u8).collect()).unwrap()
+    image::GrayImage::from_vec(
+        height,
+        width,
+        data.iter().map(|x| (*x * 255.0) as u8).collect(),
+    )
+    .unwrap()
 }
 fn imagine(width: u32, height: u32, lerp: f64, nn: &Model) -> image::GrayImage {
     let mut output: Vec<f64> = Vec::new();
@@ -131,7 +178,6 @@ fn imagine(width: u32, height: u32, lerp: f64, nn: &Model) -> image::GrayImage {
     }
     vec_to_image(height, width, output)
 }
-
 fn gray_to_egui(img: &image::GrayImage) -> RetainedImage {
     let mut pixels = Vec::new();
     img.pixels().for_each(|p| {
@@ -144,4 +190,12 @@ fn gray_to_egui(img: &image::GrayImage) -> RetainedImage {
         pixels.as_slice(),
     );
     RetainedImage::from_color_image("", color_image)
+}
+fn line_from_vec(vec: &Vec<f64>) -> egui::plot::Line {
+    egui::plot::Line::new(
+        vec.iter()
+            .enumerate()
+            .map(|(i, p)| [i as f64, p.clone()])
+            .collect::<egui::plot::PlotPoints>(),
+    )
 }
