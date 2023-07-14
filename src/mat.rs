@@ -127,6 +127,10 @@ impl MatF64 {
         self.cols
     }
 
+    pub fn to_vec(&self) -> Vec<f64> {
+        self.data.clone()
+    }
+
     pub fn split_v(self, col: usize) -> (MatF64, MatF64) {
         assert!(col < self.cols);
         assert!(col > 0);

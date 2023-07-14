@@ -24,13 +24,11 @@ fn main() {
             println!("epoch: {}",epoch);
             println!("cost: {}", nn.cost(&batch));
 
-            input.iter_rows().zip(output.iter_rows()).for_each(|x| {
-                let i = MatF64::row_from_slice(x.0);
-                let o = MatF64::row_from_slice(x.1);
+            input.iter_rows().zip(output.iter_rows()).for_each(|(i, e)| {
                 let out = nn.forward(&i);
-                print!("in:[{}] --> ", i);
-                print!("out:[{}] ", out.last().unwrap());
-                print!("expected: {}", o);
+                print!("in:[{:?}] ", &i);
+                print!("expected: {:?} --> ", e);
+                print!("out:[{:?}] ", out);
                 print!("\n");
             });
         }

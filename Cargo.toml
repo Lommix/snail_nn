@@ -1,7 +1,9 @@
 [package]
 name = "snail_nn"
 version = "0.1.0"
+authors = ["Lommix"]
 edition = "2021"
+license = "Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

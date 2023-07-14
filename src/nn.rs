@@ -29,7 +29,12 @@ impl Model {
         self.activation = activation;
     }
 
-    pub fn forward(&self, input: &MatF64) -> Vec<MatF64> {
+    pub fn forward(&self, input: &[f64]) -> Vec<f64> {
+        let output = self.activate(&MatF64::row_from_slice(input));
+        output.last().unwrap().to_vec()
+    }
+
+    pub fn activate(&self, input: &MatF64) -> Vec<MatF64> {
         assert_eq!(input.len(), self.weights[0].rows());
 
         let mut output: Vec<MatF64> = Vec::new();
@@ -45,7 +50,6 @@ impl Model {
                 .for_each(|v| *v = self.activation.forward(*v));
             output.push(next);
         }
-
         output
     }
 
@@ -53,7 +57,7 @@ impl Model {
         let mut cost = 0.0;
 
         batch.iter().for_each(|(i, e)| {
-            let activation = self.forward(&MatF64::row_from_slice(i));
+            let activation = self.activate(&MatF64::row_from_slice(i));
             let output = activation.last().unwrap();
             let expected = MatF64::row_from_slice(e);
 
@@ -87,7 +91,7 @@ impl Model {
                 let input = MatF64::row_from_slice(i);
                 let expected = MatF64::row_from_slice(e);
 
-                let activation = self.forward(&input);
+                let activation = self.activate(&input);
                 let output = activation.last().unwrap().clone();
                 // output.iter_mut().for_each(|x| *x *= 2.0);
 
@@ -189,7 +193,7 @@ impl Model {
 fn test_forward() {
     let model = Model::new(&[2, 3, 1]);
     let input = MatF64::random_rows(2);
-    let output = model.forward(&input);
+    let output = model.activate(&input);
     assert_eq!(output.len(), 3);
 }
 
@@ -198,7 +202,7 @@ fn bench_old_forward(b: &mut test::Bencher) {
     let model = Model::new(&[2, 9, 9, 1]);
     let input = MatF64::random_rows(2);
     b.iter(|| {
-        model.forward(&input);
+        model.activate(&input);
     })
 }
 

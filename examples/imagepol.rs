@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use egui::plot::Plot;
 use egui_extras::RetainedImage;
 use snail_nn::prelude::*;
@@ -74,7 +76,7 @@ impl eframe::App for CatDogApp {
         egui::CentralPanel::default().show(ctx, |ui| {
             ctx.request_repaint_after(Duration::from_secs_f32(1.0 / 60.0));
 
-            let mut epoch: u128;
+            let epoch: u128;
 
             {
                 let c = self.context.lock().unwrap();
@@ -82,14 +84,13 @@ impl eframe::App for CatDogApp {
                 epoch = c.epoch;
             }
 
-            ui.colored_label(
-                egui::Color32::WHITE,
-                format!(
-                    "Epoch: {} Cost: {}",
-                    epoch,
-                    self.cost.last().unwrap_or(&0.0)
-                ),
-            );
+            ui.heading(format!(
+                "Epoch: {} Cost: {}",
+                epoch,
+                self.cost.last().unwrap_or(&0.0)
+            ));
+
+            ui.style_mut().spacing.slider_width = (450.0).into();
 
             ui.add(
                 egui::Slider::new(&mut self.context.lock().unwrap().learning_rate, 0.0..=5.0)
@@ -99,6 +100,7 @@ impl eframe::App for CatDogApp {
                 egui::Slider::new(&mut self.context.lock().unwrap().lerp, 0.0..=1.0)
                     .text("Interpolation"),
             );
+
 
             Plot::new("Costgraph")
                 .view_aspect(4.0)
@@ -172,7 +174,7 @@ fn imagine(width: u32, height: u32, lerp: f64, nn: &Model) -> image::GrayImage {
             let xf = x as f64 / width as f64;
             let yf = y as f64 / height as f64;
             let input = MatF64::row_from_slice(&[xf, yf, lerp]);
-            let out = nn.forward(&input).last().unwrap()[(0, 0)];
+            let out = nn.activate(&input).last().unwrap()[(0, 0)];
             output.push(out);
         }
     }
