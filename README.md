@@ -3,7 +3,7 @@
 fully functional neural network libary with backpropagation and parallelized stochastic gradient descent implementation.
 
 
-## Examles
+## Examples
 
 Storing images inside the neural network, upscaling and interpolate between them.
 
