@@ -58,7 +58,6 @@ fn main(){
 
 - Sigmoid, Tanh & Relu activation functions
 - Parallelized stochastic gradient descent
-- It works on my machine ¯\\_(ツ)_/¯
 - Will gobble up most of your cpu
 
 
