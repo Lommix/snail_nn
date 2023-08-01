@@ -36,6 +36,7 @@ fn main(){
     let mut batch = TrainingBatch::empty(2, 1);
     let rate = 1.0;
 
+    // AND - training data
     batch.add(&[0.0, 0.0], &[0.0]);
     batch.add(&[1.0, 0.0], &[0.0]);
     batch.add(&[0.0, 1.0], &[0.0]);
@@ -46,7 +47,10 @@ fn main(){
         nn.learn(w_gradient, b_gradient, rate);
     }
 
-    println!("{:?}", nn.forward(&[0.0, 0.0]));
+    println!("ouput {:?} expected: 0.0", nn.forward(&[0.0, 0.0]));
+    println!("ouput {:?} expected: 0.0", nn.forward(&[1.0, 0.0]));
+    println!("ouput {:?} expected: 0.0", nn.forward(&[0.0, 1.0]));
+    println!("ouput {:?} expected: 1.0", nn.forward(&[1.0, 1.0]));
 }
 ```
 
