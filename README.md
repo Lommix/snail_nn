@@ -1,16 +1,15 @@
 # [WIP] Snail NN - smol neural network library
 
-fully functional neural network libary with backpropagation and parallelized stochastic gradient descent implementation.
-
+Minimalistic CPU based neural network library with backpropagation and parallelized stochastic gradient descent.
 
 ## Examples
 
 Storing images inside the neural network, upscaling and interpolate between them.
 
-
 ```bash
 cargo run --example imagepol --release
 ```
+
 ![image](docs/example_interpolation.png)
 
 ---
@@ -20,12 +19,13 @@ The mandatory xor example
 ```bash
 cargo run --example xor --release
 ```
-![image](docs/xor.png)
 
+![image](docs/xor.png)
 
 ---
 
 Example Code:
+
 ```rust
 use snail_nn::prelude::*;
 
@@ -54,15 +54,11 @@ fn main(){
 }
 ```
 
-##  Features
+## Features
 
-- Sigmoid, Tanh & Relu activation functions
-- Parallelized stochastic gradient descent
-- Will gobble up most of your cpu
+-   Sigmoid, Tanh & Relu activation functions
+-   Parallelized stochastic gradient descent
 
+## Todos
 
-## Todo
-
-- more examples
-- better documentation
-- compute shaders with wgpu
+-   Wgpu compute shaders
